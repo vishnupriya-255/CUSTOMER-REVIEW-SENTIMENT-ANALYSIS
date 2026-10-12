@@ -1,0 +1,60 @@
+import pandas as pd, numpy as np, matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (classification_report, ConfusionMatrixDisplay,
+                             roc_auc_score, RocCurveDisplay)
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Numeric + categorical features
+NUM = ["cgpa","attendance_percentage","backlogs","internships_count",
+       "coding_skill_score","communication_skill_score"]
+CAT = ["branch"]
+
+# Target: convert to numeric (1 = Placed, 0 = Not Placed)
+y = (df["placement_status"].str.strip().str.lower() == "placed").astype(int)
+X = df[NUM + CAT]
+
+# Train/test split
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)
+
+# Preprocessing pipeline
+prep = ColumnTransformer([
+    ("num", StandardScaler(), NUM),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), CAT)
+])
+
+clf = Pipeline([
+    ("prep", prep),
+    ("lr", LogisticRegression(max_iter=1000))
+])
+
+# Fit model
+clf.fit(Xtr, ytr)
+
+# Predictions
+proba = clf.predict_proba(Xte)[:, 1]
+pred = clf.predict(Xte)
+
+# Reports
+print(classification_report(yte, pred, target_names=["Not placed","Placed"]))
+print("ROC-AUC:", round(roc_auc_score(yte, proba), 4))
+print("5-fold CV accuracy:", cross_val_score(clf, X, y, cv=5).mean().round(4))
+
+# Confusion matrix and ROC curve
+ConfusionMatrixDisplay.from_estimator(clf, Xte, yte, cmap="Blues")
+plt.show()
+
+RocCurveDisplay.from_estimator(clf, Xte, yte)
+plt.plot([0,1],[0,1],'k--')
+plt.show()
+
+# Feature odds ratios
+names = clf[:-1].get_feature_names_out()
+coef = clf[-1].coef_[0]
+odds = pd.Series(np.exp(coef), index=names).sort_values(ascending=False)
+print("\nOdds ratios (>1 helps placement, <1 hurts):\n", odds.round(3))
