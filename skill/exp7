@@ -1,0 +1,54 @@
+!pip -q install umap-learn
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns, time
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+import umap
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct feature names
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score"]
+
+# Inputs and target
+X = StandardScaler().fit_transform(df[F])
+y = (df["placement_status"].str.strip().str.lower() == "placed").astype(int).values
+
+# PCA scree plot
+pca = PCA().fit(X)
+cum = np.cumsum(pca.explained_variance_ratio_)
+plt.plot(range(1,len(cum)+1), cum, 'o-'); plt.axhline(.9, color='r', ls='--')
+plt.xlabel("components kept"); plt.ylabel("cumulative variance")
+plt.title("Scree plot"); plt.show()
+print("components needed for 90% of the variance:", int(np.argmax(cum >= .9) + 1))
+
+# PCA loadings
+loadings = pd.DataFrame(pca.components_[:2].T, index=F, columns=["PC1","PC2"])
+sns.heatmap(loadings, annot=True, fmt=".2f", cmap="coolwarm", center=0)
+plt.title("What each component is made of"); plt.show()
+
+# Embeddings
+emb = {}
+t0 = time.time(); emb["PCA"] = PCA(2, random_state=0).fit_transform(X)
+print(f"PCA     {time.time()-t0:.2f}s")
+t0 = time.time(); emb["t-SNE"] = TSNE(2, perplexity=30, init="pca", random_state=0).fit_transform(X)
+print(f"t-SNE   {time.time()-t0:.2f}s")
+t0 = time.time(); emb["UMAP"] = umap.UMAP(n_neighbors=15, random_state=0).fit_transform(X)
+print(f"UMAP    {time.time()-t0:.2f}s")
+
+fig, ax = plt.subplots(1, 3, figsize=(15, 4.5))
+for a, (name, e) in zip(ax, emb.items()):
+    a.scatter(e[:,0], e[:,1], c=y, cmap="coolwarm", s=12, alpha=.7)
+    a.set_title(name)
+plt.show()
+
+# t-SNE with different perplexities
+fig, ax = plt.subplots(1, 3, figsize=(15, 4))
+for a, p in zip(ax, [5, 30, 50]):
+    e = TSNE(2, perplexity=p, init="pca", random_state=0).fit_transform(X)
+    a.scatter(e[:,0], e[:,1], c=y, cmap="coolwarm", s=10)
+    a.set_title(f"perplexity={p}")
+plt.show()
