@@ -1,0 +1,22 @@
+import numpy as np, pandas as pd, sklearn
+print("NumPy", np.__version__, "| Pandas", pd.__version__, "| sklearn", sklearn.__version__)
+rng, N = np.random.default_rng(42), 1000
+df = pd.DataFrame({
+"cgpa" : np.clip(rng.normal(7.4, .9, N), 4, 10).round(2),
+"attendance" : np.clip(rng.normal(80, 9, N), 45, 100).round(1),
+"backlogs" : rng.poisson(.6, N),
+"internships" : rng.integers(0, 4, N),
+"coding_score": np.clip(rng.normal(58, 16, N), 0, 100).round(1),
+"comm_score" : np.clip(rng.normal(60, 14, N), 0, 100).round(1),
+"projects" : rng.integers(0, 6, N),
+"hours_study" : np.clip(rng.normal(3, 1.1, N), .2, 9).round(2),
+"branch" : rng.choice(["CSE","AI&DS","ECE","IT"], N)})
+z = (-9 + .62*df.cgpa + .035*df.attendance + .045*df.coding_score
++ .028*df.comm_score + .45*df.internships + .22*df.projects - .75*df.backlogs)
+df["placed"] = (rng.random(N) < 1/(1+np.exp(-z))).astype(int)
+df.loc[rng.choice(N, 25, replace=False), "comm_score"] = np.nan
+df.to_csv("students.csv", index=False)
+print(df.head()); df.info()
+print(df.describe().T.round(2))
+print("Missing:\n", df.isna().sum()[lambda s: s > 0])
+print("Placed rate:", df.placed.mean().round(3))
