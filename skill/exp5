@@ -1,0 +1,49 @@
+import pandas as pd, numpy as np, matplotlib.pyplot as plt, time
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LinearRegression, SGDRegressor
+from sklearn.metrics import r2_score
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct column names
+NUM = ["cgpa","attendance_percentage","backlogs","internships_count",
+       "coding_skill_score","communication_skill_score"]
+CAT = ["branch"]
+
+# Inputs and target
+X, y = df[NUM + CAT], df["cgpa"]
+
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=42)
+
+# --- A. numbers only (drop text column) ---
+m1 = LinearRegression().fit(Xtr[NUM], ytr)
+print("numeric only R2 =", round(r2_score(yte, m1.predict(Xte[NUM])), 4))
+
+# --- B. numbers + one-hot encoded branch ---
+prep = ColumnTransformer([
+    ("num", StandardScaler(), NUM),
+    ("cat", OneHotEncoder(drop="first"), CAT)
+])
+m2 = Pipeline([("prep", prep), ("lr", LinearRegression())]).fit(Xtr, ytr)
+print("numeric + encoded R2 =", round(r2_score(yte, m2.predict(Xte)), 4))
+print("\ncolumns created by the transformer:", list(m2[:-1].get_feature_names_out()))
+
+# --- C. why scaling matters: coefficients become comparable ---
+raw = LinearRegression().fit(Xtr[NUM], ytr)
+sca = Pipeline([("sc", StandardScaler()), ("lr", LinearRegression())]).fit(Xtr[NUM], ytr)
+
+print("\nunscaled coefficients (units differ, cannot be ranked):")
+print(pd.Series(raw.coef_, index=NUM).round(4).to_string())
+print("scaled coefficients (per 1 std, directly comparable):")
+print(pd.Series(sca[-1].coef_, index=NUM).round(4).to_string())
+
+# --- D. why scaling matters: iterative solvers converge faster ---
+for label, data in [("unscaled", Xtr[NUM].values),
+                    ("scaled", StandardScaler().fit_transform(Xtr[NUM]))]:
+    t0 = time.time()
+    sgd = SGDRegressor(max_iter=5000, tol=1e-4, random_state=0).fit(data, ytr)
+    print(f"SGD on {label:<9} iterations={sgd.n_iter_:<5} time={time.time()-t0:.3f}s")
