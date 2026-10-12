@@ -1,0 +1,649 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Review Sentiment Analysis</title>
+<style>
+:root{--navy:#17172f;--purple:#7562ed;--muted:#85849b;--line:#e9e8f3}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;color:var(--navy);background:radial-gradient(ellipse at 10% 0%,#e8e5ff,transparent 38%),#f7f7fc}
+button,textarea,input{font:inherit}
+button{cursor:pointer}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:17px 7%;background:var(--navy);color:white}
+.brand{font-size:19px;font-weight:800}
+.brand span{color:#aaa0ff}
+.status{font-size:10px;color:#d6d3eb;letter-spacing:1px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#55e4a0;margin-right:7px}
+main{width:min(1120px,92%);margin:auto}
+.hero{text-align:center;padding:52px 10px 32px}
+.eyebrow{display:inline-block;padding:8px 13px;border-radius:30px;background:white;border:1px solid #e3deff;color:#6651d6;font-size:10px;font-weight:800;letter-spacing:1.3px}
+h1{font-size:clamp(34px,5vw,54px);line-height:1.1;letter-spacing:-1.8px;margin:19px 0 13px}
+h1 span{color:var(--purple)}
+.hero p{max-width:590px;margin:auto;color:var(--muted);line-height:1.7;font-size:14px}
+.layout{display:grid;grid-template-columns:1.45fr .9fr;gap:20px;align-items:start}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:25px;box-shadow:0 9px 30px #2520440b}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.small{font-size:10px;font-weight:800;letter-spacing:1.3px;color:#9693b0}
+.heading h2,.analytics h2{font-size:23px;margin:7px 0 23px}
+.icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#f0edff;color:var(--purple);font-size:22px}
+label{display:block;margin:14px 0 9px;color:#676780;font-size:10px;font-weight:800;letter-spacing:1px}
+textarea{width:100%;min-height:145px;padding:15px;border:1px solid #e2e1ef;border-radius:12px;resize:vertical;background:#fcfcff;color:var(--navy);line-height:1.6;font-size:14px}
+textarea:focus,input:focus{outline:3px solid #7562ed22;border-color:var(--purple)}
+.meta{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:11px;color:#9998ad}
+.try{margin:22px 0 10px;font-size:10px;font-weight:800;letter-spacing:1px;color:#8988a0}
+.examples{display:flex;gap:8px;flex-wrap:wrap}
+.example{border:1px solid transparent;border-radius:8px;padding:9px 11px;font-size:11px;font-weight:700}
+.pos{background:#eaf8ef;color:#168653}
+.neg{background:#fff0f2;color:#c83f58}
+.neu{background:#fff7e5;color:#a97512}
+.actions{display:flex;gap:10px;margin-top:23px}
+.primary,.secondary{border-radius:10px;padding:13px 16px;font-size:13px;font-weight:750}
+.primary{flex:1;border:0;color:white;background:linear-gradient(100deg,#7460ed,#9369ed)}
+.secondary{background:white;border:1px solid var(--line);color:#666680}
+.result{display:flex;align-items:center;gap:12px;margin-top:20px;padding:15px;border:1px solid;border-radius:12px}
+.hidden{display:none!important}
+.result .symbol{font-size:25px}
+.result h3{margin:4px 0;font-size:21px}
+.result p{margin:0;font-size:11px;line-height:1.5}
+.result.positive{background:#effaf3;border-color:#d5f0df;color:#167446}
+.result.negative{background:#fff2f3;border-color:#f8dadd;color:#b72e48}
+.result.neutral{background:#fff9eb;border-color:#f4e7c4;color:#8b650f}
+.side{display:grid;gap:18px}
+.side h3{margin:0;font-size:17px}
+.muted{color:var(--muted);font-size:12px;line-height:1.7}
+.step{display:flex;gap:12px;margin-top:17px}
+.num{width:32px;height:32px;flex-shrink:0;display:grid;place-items:center;border-radius:9px;background:#f1eeff;color:var(--purple);font-size:10px;font-weight:800}
+.step strong{font-size:12px}
+.step p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.history{margin-top:17px}
+.history-item{padding:11px 0;border-bottom:1px solid #f0eff6;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.history-item p{font-size:11px;color:#686881;line-height:1.5;margin:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;flex:1}
+.pill{font-size:9px;font-weight:800;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.analytics{margin-top:22px}
+.analytics h2{margin-bottom:7px}
+.intro{margin:0 0 20px;color:var(--muted);font-size:12px}
+.total{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px;background:#f7f5ff;border:1px solid #e8e3ff;border-radius:12px;font-size:12px;color:#686680}
+.total strong{font-size:24px;color:#6c55df}
+.chart{display:grid;gap:19px;margin-top:24px}
+.bar-head{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#565570}
+.track{height:12px;border-radius:20px;background:#f0eff7;overflow:hidden}
+.bar{height:100%;width:0;border-radius:20px;transition:width .4s}
+.bar.positive{background:linear-gradient(90deg,#32bd82,#75ddb0)}
+.bar.negative{background:linear-gradient(90deg,#e45a76,#f29aae)}
+.bar.neutral{background:linear-gradient(90deg,#e6b449,#f4d88b)}
+.upload-box{margin-top:24px;padding:20px;border:1px dashed #c9c2f5;border-radius:14px;background:#faf9ff}
+.upload-box p{font-size:12px;color:var(--muted);line-height:1.6}
+.upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.upload-row input{max-width:100%;font-size:12px}
+.message{font-size:12px;margin-top:12px;line-height:1.6;color:#666680}
+.table-wrap{overflow:auto;margin-top:16px;max-height:520px;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:650px;font-size:12px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #f0eff6;vertical-align:top;max-width:480px;overflow-wrap:anywhere}
+th{position:sticky;top:0;background:#f7f5ff;color:#565570;z-index:1}
+footer{text-align:center;padding:30px 10px;color:#8988a0;font-size:11px;line-height:1.8}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.side{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){header{padding:16px 5%}.brand{font-size:15px}.status{font-size:8px}.hero{padding-top:38px}.panel{padding:20px 17px}.side{grid-template-columns:1fr}.actions{flex-direction:column}.secondary{width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">✦ Customer Review <span>Sentiment Analysis</span></div>
+  <div class="status"><i class="dot"></i> CLIENT-SIDE DEMO</div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="eyebrow">MACHINE LEARNING PROJECT</div>
+  <h1>Customer Review<br><span>Sentiment Analysis</span></h1>
+  <p>Explore customer feedback with a simple sentiment analyzer. Enter a review or upload a CSV file to estimate whether the wording sounds positive, negative, or neutral.</p>
+</section>
+
+<div class="layout">
+<section class="panel">
+  <div class="heading">
+    <div><div class="small">REVIEW ANALYZER</div><h2>Analyze a review</h2></div>
+    <div class="icon">✎</div>
+  </div>
+
+  <label for="review">CUSTOMER REVIEW</label>
+  <textarea id="review" maxlength="5000" placeholder="Example: The product quality is excellent and delivery was fast..."></textarea>
+  <div class="meta"><span>Enter a review in your own words.</span><span id="chars">0 / 5000</span></div>
+
+  <div class="try">TRY AN EXAMPLE</div>
+  <div class="examples">
+    <button class="example pos" data-text="The product is excellent, works perfectly, and I love it.">☺ Positive</button>
+    <button class="example neg" data-text="Terrible quality. It broke quickly and I am very disappointed.">☹ Negative</button>
+    <button class="example neu" data-text="The product arrived today and looks like the description.">◉ Neutral</button>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="analyze">Analyze Sentiment →</button>
+    <button class="secondary" id="clear">Clear</button>
+  </div>
+  <p class="message" id="error" role="alert"></p>
+
+  <div class="result hidden" id="result" aria-live="polite">
+    <span class="symbol" id="symbol">☺</span>
+    <div><div class="small">PREDICTED SENTIMENT</div><h3 id="sentiment">Positive</h3><p id="description"></p></div>
+  </div>
+
+  <div class="upload-box">
+    <div class="small">BULK REVIEW ANALYSIS</div>
+    <h3 style="margin:8px 0">Upload a CSV file</h3>
+    <p>Choose a CSV containing customer reviews. The website looks for a column such as <b>Review_text</b>, <b>review</b>, <b>review_text</b>, or <b>comment</b>.</p>
+    <div class="upload-row">
+      <input type="file" id="csvFile" accept=".csv,text/csv">
+      <button class="primary" id="analyzeCsv" type="button">Analyze CSV →</button>
+    </div>
+    <p class="message" id="csvMessage" role="status"></p>
+  </div>
+</section>
+
+<aside class="side">
+  <section class="panel">
+    <div class="icon">⌘</div>
+    <h3>How it works</h3>
+    <p class="muted">This standalone demo follows three simple steps.</p>
+    <div class="step"><div class="num">01</div><div><strong>Text input</strong><p>You enter a customer review or upload a CSV file.</p></div></div>
+    <div class="step"><div class="num">02</div><div><strong>Keyword matching</strong><p>JavaScript checks lists of positive and negative words.</p></div></div>
+    <div class="step"><div class="num">03</div><div><strong>Estimated result</strong><p>The matching word scores determine the displayed category.</p></div></div>
+  </section>
+
+  <section class="panel">
+    <div class="small">SAVED HISTORY</div>
+    <div class="heading" style="margin-top:7px"><h3>Recent predictions</h3><span class="pill neu" id="historyCount">0</span></div>
+    <p class="muted">Your review text and sentiment are saved in this browser, including after a refresh.</p>
+    <div id="history" class="history"><p class="muted">Your analyzed reviews will appear here.</p></div>
+    <button class="secondary" style="width:100%;margin-top:12px" id="clearHistory">Clear history and graph</button>
+  </section>
+</aside>
+</div>
+
+<section class="panel analytics">
+  <div class="small">LIVE ANALYTICS</div>
+  <h2>Sentiment at a glance</h2>
+  <p class="intro">Counts from individual reviews and CSV reviews analyzed in this browser.</p>
+  <div class="total"><span>Total analyzed reviews</span><strong id="total">0</strong></div>
+  <div class="chart">
+    <div><div class="bar-head"><span>Positive</span><strong id="positiveCount">0</strong></div><div class="track"><div class="bar positive" id="positiveBar"></div></div></div>
+    <div><div class="bar-head"><span>Negative</span><strong id="negativeCount">0</strong></div><div class="track"><div class="bar negative" id="negativeBar"></div></div></div>
+    <div><div class="bar-head"><span>Neutral</span><strong id="neutralCount">0</strong></div><div class="track"><div class="bar neutral" id="neutralBar"></div></div></div>
+  </div>
+</section>
+
+<section class="panel analytics hidden" id="csvResults">
+  <div class="small">CSV RESULTS</div>
+  <h2>Analyzed reviews</h2>
+  <p class="intro" id="csvSummary"></p>
+  <div class="actions"><button class="primary" id="downloadCsv">Download analyzed CSV ↓</button></div>
+  <div class="table-wrap"><table><thead id="csvHead"></thead><tbody id="csvBody"></tbody></table></div>
+</section>
+</main>
+
+<footer>Customer Review Sentiment Analysis<br>Standalone HTML · CSS · JavaScript</footer>
+
+<script>
+const reviewBox = document.getElementById("review");
+const resultBox = document.getElementById("result");
+const STORAGE_KEY = "customerReviewSentimentHistory_v2";
+let historyItems = [];
+let csvDownloadRows = [];
+
+const counts = {Positive: 0, Negative: 0, Neutral: 0};
+
+const positiveWords = [
+  "good","great","excellent","amazing","love","loved","perfect","best",
+  "wonderful","happy","satisfied","fast","beautiful","easy","recommend",
+  "awesome","fantastic","nice","worth","impressive","quality","brilliant",
+  "comfortable","useful","reliable","enjoy","helpful"
+];
+
+const negativeWords = [
+  "bad","terrible","awful","hate","hated","worst","poor","disappointed",
+  "broken","broke","slow","waste","useless","defective","damaged","return",
+  "problem","difficult","expensive","late","dislike","refund","disappointing",
+  "cheap","fail","failed","unhappy","horrible"
+];
+
+function saveHistory() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(historyItems));
+  } catch (error) {
+    console.warn("Could not save history in this browser.", error);
+  }
+}
+
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) historyItems = parsed;
+    }
+  } catch (error) {
+    historyItems = [];
+  }
+
+  historyItems.forEach(item => {
+    if (counts[item.sentiment] !== undefined) counts[item.sentiment]++;
+  });
+
+  renderHistory();
+  updateGraph();
+}
+
+document.getElementById("review").addEventListener("input", () => {
+  document.getElementById("chars").textContent = reviewBox.value.length + " / 5000";
+});
+
+document.querySelectorAll("[data-text]").forEach(button => {
+  button.addEventListener("click", () => {
+    reviewBox.value = button.dataset.text;
+    reviewBox.dispatchEvent(new Event("input"));
+    reviewBox.focus();
+  });
+});
+
+function predictSentiment(text) {
+  const words = text.toLowerCase().match(/[a-z']+/g) || [];
+  let pos = 0, neg = 0;
+
+  words.forEach((word, index) => {
+    const isPositive = positiveWords.includes(word);
+    const isNegative = negativeWords.includes(word);
+
+    if (isPositive) pos++;
+    if (isNegative) neg++;
+
+    if (["not", "never", "no", "hardly"].includes(words[index - 1])) {
+      if (isPositive) { pos--; neg++; }
+      else if (isNegative) { neg--; pos++; }
+    }
+  });
+
+  return pos > neg ? "Positive" : neg > pos ? "Negative" : "Neutral";
+}
+
+function addHistory(text, sentiment, source = "Manual review") {
+  historyItems.unshift({
+    text,
+    sentiment,
+    source,
+    date: new Date().toLocaleString()
+  });
+
+  if (counts[sentiment] !== undefined) counts[sentiment]++;
+
+  if (historyItems.length > 500) {
+    const removed = historyItems.pop();
+    if (counts[removed.sentiment] !== undefined) counts[removed.sentiment]--;
+  }
+
+  saveHistory();
+  renderHistory();
+  updateGraph();
+}
+
+function updateGraph() {
+  const total = counts.Positive + counts.Negative + counts.Neutral;
+  document.getElementById("total").textContent = total;
+
+  ["Positive", "Negative", "Neutral"].forEach(label => {
+    const key = label.toLowerCase();
+    document.getElementById(key + "Count").textContent = counts[label];
+    document.getElementById(key + "Bar").style.width =
+      total ? (counts[label] / total * 100) + "%" : "0%";
+  });
+}
+
+function renderHistory() {
+  const box = document.getElementById("history");
+  document.getElementById("historyCount").textContent = historyItems.length;
+  box.replaceChildren();
+
+  if (!historyItems.length) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Your analyzed reviews will appear here.";
+    box.appendChild(p);
+    return;
+  }
+
+  historyItems.slice(0, 30).forEach(item => {
+    const row = document.createElement("div");
+    row.className = "history-item";
+
+    const p = document.createElement("p");
+    p.textContent = item.text;
+
+    const tag = document.createElement("span");
+    tag.className = "pill " + item.sentiment.toLowerCase();
+    tag.textContent = item.sentiment;
+
+    row.append(p, tag);
+    box.appendChild(row);
+  });
+
+  if (historyItems.length > 30) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Showing the latest 30 entries. Total saved: " + historyItems.length;
+    box.appendChild(p);
+  }
+}
+
+document.getElementById("analyze").addEventListener("click", () => {
+  const text = reviewBox.value.trim();
+  document.getElementById("error").textContent = "";
+
+  if (!text) {
+    document.getElementById("error").textContent = "Please enter a review first.";
+    reviewBox.focus();
+    return;
+  }
+
+  const sentiment = predictSentiment(text);
+  document.getElementById("sentiment").textContent = sentiment;
+  document.getElementById("symbol").textContent =
+    sentiment === "Positive" ? "☺" : sentiment === "Negative" ? "☹" : "◉";
+
+  document.getElementById("description").textContent =
+    sentiment === "Positive"
+      ? "Positive words matched more often in this review."
+      : sentiment === "Negative"
+      ? "Negative words matched more often in this review."
+      : "No clear positive or negative keyword advantage was found.";
+
+  resultBox.className = "result " + sentiment.toLowerCase();
+  addHistory(text, sentiment);
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  reviewBox.value = "";
+  reviewBox.dispatchEvent(new Event("input"));
+  document.getElementById("error").textContent = "";
+  resultBox.className = "result hidden";
+  reviewBox.focus();
+});
+
+document.getElementById("clearHistory").addEventListener("click", () => {
+  if (!confirm("Clear all saved review history and reset the graph?")) return;
+
+  historyItems = [];
+  counts.Positive = 0;
+  counts.Negative = 0;
+  counts.Neutral = 0;
+
+  saveHistory();
+  renderHistory();
+  updateGraph();
+  resultBox.className = "result hidden";
+});
+
+// CSV parser supports commas and line breaks inside quoted cells.
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (quoted) {
+      if (char === '"' && text[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else {
+      if (char === '"' && cell.length === 0) quoted = true;
+      else if (char === ',') {
+        row.push(cell);
+        cell = "";
+      } else if (char === '\n') {
+        row.push(cell.replace(/\r$/, ""));
+        rows.push(row);
+        row = [];
+        cell = "";
+      } else {
+        cell += char;
+      }
+    }
+  }
+
+  if (cell.length || row.length) {
+    row.push(cell.replace(/\r$/, ""));
+    rows.push(row);
+  }
+
+  return rows.filter(r => r.some(v => String(v).trim() !== ""));
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text)
+    ? '"' + text.replace(/"/g, '""') + '"'
+    : text;
+}
+
+function findReviewColumn(headers) {
+  const normalized = headers.map(h =>
+    String(h).trim().toLowerCase()
+      .replace(/[\s\-]+/g, "_")
+      .replace(/[^a-z0-9_]/g, "")
+  );
+
+  const preferred = [
+    "review_text", "reviewtext", "review", "review_body",
+    "review_content", "comment", "comments", "text",
+    "customer_review", "content", "review_header"
+  ];
+
+  for (const name of preferred) {
+    const index = normalized.indexOf(name);
+    if (index !== -1) return index;
+  }
+
+  return normalized.findIndex(name =>
+    name.includes("review") ||
+    name.includes("comment") ||
+    name === "text" ||
+    name.includes("content")
+  );
+}
+
+function renderCSVResults(headers, rows, reviewIndex) {
+  const resultHeaders = [...headers, "Predicted_Sentiment"];
+  const head = document.getElementById("csvHead");
+  head.replaceChildren();
+
+  const tr = document.createElement("tr");
+  resultHeaders.forEach(header => {
+    const th = document.createElement("th");
+    th.textContent = header;
+    tr.appendChild(th);
+  });
+  head.appendChild(tr);
+
+  const body = document.getElementById("csvBody");
+  body.replaceChildren();
+
+  rows.slice(0, 1000).forEach(row => {
+    const tr = document.createElement("tr");
+    row.forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+
+  if (rows.length > 1000) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = resultHeaders.length;
+    td.textContent = "Showing first 1,000 rows in the table. Download the CSV to view all results.";
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+
+  const sentiments = {Positive: 0, Negative: 0, Neutral: 0};
+  rows.forEach(row => {
+    if (sentiments[row[row.length - 1]] !== undefined) {
+      sentiments[row[row.length - 1]]++;
+    }
+  });
+
+  document.getElementById("csvSummary").textContent =
+    `Analyzed ${rows.length} reviews. Positive: ${sentiments.Positive} · Negative: ${sentiments.Negative} · Neutral: ${sentiments.Neutral}. Review column: ${headers[reviewIndex]}.`;
+
+  document.getElementById("csvResults").classList.remove("hidden");
+}
+
+document.getElementById("analyzeCsv").addEventListener("click", async () => {
+  const fileInput = document.getElementById("csvFile");
+  const message = document.getElementById("csvMessage");
+  const file = fileInput.files[0];
+
+  message.textContent = "";
+
+  if (!file) {
+    message.textContent = "Please choose a CSV file first.";
+    return;
+  }
+
+  try {
+    message.textContent = "Reading CSV file...";
+
+    const text = await file.text();
+    const parsed = parseCSV(text);
+
+    if (parsed.length < 2) {
+      message.textContent = "The CSV appears empty or has no review rows.";
+      return;
+    }
+
+    const originalHeaders = parsed[0].map((h, i) =>
+      i === 0 ? h.replace(/^\uFEFF/, "") : h.trim()
+    );
+
+    // Exclude Own_Rating from both the results table and downloaded CSV.
+    const excludedIndexes = [];
+    originalHeaders.forEach((header, index) => {
+      const normalized = String(header).trim().toLowerCase()
+        .replace(/[\s\-]+/g, "_");
+      if (normalized === "own_rating") excludedIndexes.push(index);
+    });
+
+    const headers = originalHeaders.filter(
+      (header, index) => !excludedIndexes.includes(index)
+    );
+
+    const reviewIndex = findReviewColumn(headers);
+
+    if (reviewIndex === -1) {
+      message.textContent =
+        "Could not find a review column. Please include a column named Review_text, review, comment, text, or content.";
+      return;
+    }
+
+    let skipped = 0;
+    let analyzed = 0;
+    const outputRows = [];
+
+    for (let i = 1; i < parsed.length; i++) {
+      const row = parsed[i].filter(
+        (value, index) => !excludedIndexes.includes(index)
+      );
+
+      while (row.length < headers.length) row.push("");
+
+      const review = String(row[reviewIndex] ?? "").trim();
+
+      if (!review) {
+        skipped++;
+        continue;
+      }
+
+      const sentiment = predictSentiment(review);
+      outputRows.push([...row.slice(0, headers.length), sentiment]);
+
+      historyItems.unshift({
+        text: review,
+        sentiment,
+        source: "CSV: " + file.name,
+        date: new Date().toLocaleString()
+      });
+
+      if (counts[sentiment] !== undefined) counts[sentiment]++;
+      analyzed++;
+    }
+
+    if (!outputRows.length) {
+      message.textContent = "No non-empty reviews were found in the selected review column.";
+      return;
+    }
+
+    if (historyItems.length > 500) {
+      historyItems = historyItems.slice(0, 500);
+      counts.Positive = 0;
+      counts.Negative = 0;
+      counts.Neutral = 0;
+
+      historyItems.forEach(item => {
+        if (counts[item.sentiment] !== undefined) counts[item.sentiment]++;
+      });
+    }
+
+    saveHistory();
+    renderHistory();
+    updateGraph();
+
+    csvDownloadRows = [headers.concat("Predicted_Sentiment"), ...outputRows];
+    renderCSVResults(headers, outputRows, reviewIndex);
+
+    message.textContent =
+      `Finished! Analyzed ${analyzed} reviews. Skipped ${skipped} empty review rows. Your results and review text have been added to saved history.`;
+
+    document.getElementById("csvResults").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  } catch (error) {
+    console.error(error);
+    message.textContent =
+      "Could not read this CSV file. Please check that it is a valid CSV file and try again.";
+  }
+});
+
+document.getElementById("downloadCsv").addEventListener("click", () => {
+  if (!csvDownloadRows.length) return;
+
+  const csv = csvDownloadRows
+    .map(row => row.map(csvEscape).join(","))
+    .join("\r\n");
+
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "Sentiment_Analysis_Results.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+});
+
+loadHistory();
+</script>
+</body>
+</html>
