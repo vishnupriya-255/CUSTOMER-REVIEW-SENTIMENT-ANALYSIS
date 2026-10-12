@@ -1,0 +1,36 @@
+import	numpy	as	np,	pandas	as	pd,	matplotlib.pyplot	as	plt
+from	sklearn.preprocessing	import	StandardScaler
+from	sklearn.decomposition	import	PCA
+from	sklearn.cluster	import	KMeans,	AgglomerativeClustering,	DBSCAN
+from	sklearn.metrics	import	silhouette_score,	adjusted_rand_score
+from	sklearn.neighbors	import	NearestNeighbors
+from	scipy.cluster.hierarchy	import	dendrogram,	linkage
+df	=	pd.read_csv("students_clean.csv")
+F	=	["cgpa","attendance","backlogs","internships","coding_score","comm_score","projects","hours_study"]
+X	=	StandardScaler().fit_transform(df[F])										
+#	scaling	is	mandatory
+X2	=	PCA(2,	random_state=0).fit_transform(X)
+ks	=	range(2,	11)
+wcss	=	[KMeans(k,	n_init=10,	random_state=0).fit(X).inertia_	for	k	in	ks]
+sil		=	[silhouette_score(X,	KMeans(k,	n_init=10,	random_state=0).fit_predict(X))	for	k	in	ks]
+fig,	ax	=	plt.subplots(1,	2,	figsize=(11,4))
+ax[0].plot(ks,	wcss,	'o-');	ax[0].set_title("Elbow");	ax[0].set_xlabel("k")
+ax[1].plot(ks,	sil,	's-');		ax[1].set_title("Silhouette");	ax[1].set_xlabel("k");	plt.show()
+k	=	list(ks)[int(np.argmax(sil))];	print("best	k	=",	k)
+km		=	KMeans(k,	n_init=10,	random_state=0).fit_predict(X)
+agg	=	AgglomerativeClustering(k).fit_predict(X)
+d,	_	=	NearestNeighbors(n_neighbors=16).fit(X).kneighbors(X)
+eps	=	float(np.percentile(np.sort(d[:,-1]),	92))										
+db		=	DBSCAN(eps=eps,	min_samples=16).fit_predict(X)
+
+#	knee	of	the	k-distance	curve
+fig,	ax	=	plt.subplots(1,	3,	figsize=(15,4))
+for	a,	(n,	lab)	in	zip(ax,	[("K-Means",km),	("Hierarchical",agg),	("DBSCAN",db)]):
+a.scatter(X2[:,0],	X2[:,1],	c=lab,	cmap="viridis",	s=12);	a.set_title(n)
+plt.show()
+dendrogram(linkage(X,	"ward"),	truncate_mode="lastp",	p=20);	plt.title("Ward	dendrogram");	plt.show()
+for	n,	lab	in	[("K-Means",km),	("Hierarchical",agg),	("DBSCAN",db)]:
+m	=	lab	!=	-1
+print(f"{n:<13}	clusters={len(set(lab[m]))}	silhouette={silhouette_score(X[m],lab[m]):.3f}"
+f"	ARI	vs	placed={adjusted_rand_score(df.placed[m],	lab[m]):.3f}")
+print(df.assign(cluster=km).groupby("cluster")[F+["placed"]].mean().round(2)
