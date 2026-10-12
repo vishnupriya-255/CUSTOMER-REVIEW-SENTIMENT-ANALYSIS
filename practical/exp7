@@ -1,0 +1,43 @@
+import pandas as pd, matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.inspection import permutation_importance
+
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct features
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score","projects_count","study_hours_per_day"]
+
+Xtr, Xte, ytr, yte = train_test_split(df[F], df["placement_status"],
+                                      test_size=0.25, random_state=42, stratify=df["placement_status"])
+
+# OOB error curve
+n_range = [10,25,50,100]
+oob = [1 - RandomForestClassifier(n_estimators=n, oob_score=True, random_state=0).fit(Xtr,ytr).oob_score_
+       for n in n_range]
+plt.plot(n_range, oob, 'o-')
+plt.xlabel("n_estimators"); plt.ylabel("OOB error")
+plt.title("OOB error vs number of trees"); plt.show()
+
+# Compare max_features
+for mf in ["sqrt","log2",None]:
+    rf = RandomForestClassifier(300, max_features=mf, oob_score=True, random_state=0).fit(Xtr,ytr)
+    print(f"max_features={str(mf):<5} oob={rf.oob_score_:.4f} test={rf.score(Xte,yte):.4f}")
+
+# Contribution of randomness
+print("\nWhat each source of randomness contributes:")
+for name, m in [("Single tree", DecisionTreeClassifier(random_state=0)),
+                ("Bagging only", BaggingClassifier(DecisionTreeClassifier(), n_estimators=300, random_state=0)),
+                ("Full forest", RandomForestClassifier(300, random_state=0))]:
+    print(f"    {name:<14} test={m.fit(Xtr,ytr).score(Xte,yte):.4f}")
+
+# Feature importance
+rf = RandomForestClassifier(300, oob_score=True, random_state=0).fit(Xtr,ytr)
+perm = permutation_importance(rf, Xte, yte, n_repeats=20, random_state=0)
+
+print("\nImportance (impurity vs permutation):")
+print(pd.DataFrame({"impurity": rf.feature_importances_,
+                    "permutation": perm.importances_mean},
+                   index=F).sort_values("permutation", ascending=False).round(4))
