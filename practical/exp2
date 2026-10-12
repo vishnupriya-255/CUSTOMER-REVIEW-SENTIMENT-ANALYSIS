@@ -1,0 +1,18 @@
+import pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+sns.set_theme(style="whitegrid")
+df = pd.read_csv("students.csv")
+df["comm_score"] = df.comm_score.fillna(df.comm_score.median()) # clean
+num = ["cgpa","attendance","backlogs","internships",
+"coding_score","comm_score","projects","hours_study"]
+df[num].hist(bins=25, figsize=(14,6), color="#2E5FA3"); plt.suptitle("Distributions"); plt.show()
+fig, ax = plt.subplots(2, 4, figsize=(16,6))
+for a, c in zip(ax.ravel(), num):
+ sns.boxplot(x="placed", y=c, data=df, ax=a)
+plt.suptitle("Feature vs target"); plt.tight_layout(); plt.show()
+plt.figure(figsize=(8,6))
+sns.heatmap(df[num+["placed"]].corr(), annot=True, fmt=".2f", cmap="coolwarm", center=0)
+plt.title("Correlation"); plt.show()
+sns.barplot(x="branch", y="placed", data=df).set_title("Placement rate by branch"); plt.show()
+print("Top correlates of placement:")
+print(df[num+["placed"]].corr()["placed"].drop("placed").abs().sort_values(ascending=False).round(3))
+df.to_csv("students_clean.csv", index=False)
