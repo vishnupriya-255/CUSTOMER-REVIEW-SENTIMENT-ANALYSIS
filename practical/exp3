@@ -1,0 +1,25 @@
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+df = pd.read_csv("students_clean.csv")
+F = ["hours_study","attendance","backlogs","projects"]
+Xtr, Xte, ytr, yte = train_test_split(df[F].values, df.cgpa.values, test_size=.2, random_state=42)
+mu, sd = Xtr.mean(0), Xtr.std(0)
+Xtr, Xte = (Xtr-mu)/sd, (Xte-mu)/sd # scaling is mandatory
+def gd(X, y, lr=.05, epochs=500):
+ w, b, hist = np.zeros(X.shape[1]), 0.0, []
+ for _ in range(epochs):
+   err = X @ w + b - y
+   hist.append((err**2).mean()/2)
+   w -= lr * (X.T @ err) / len(y)
+   b -= lr * err.mean()
+ return w, b, hist
+w, b, hist = gd(Xtr, ytr)
+print("weights:", dict(zip(F, w.round(4))), "bias:", round(b,4))
+print("GD R2 =", round(r2_score(yte, Xte@w+b), 4))
+print("sklearn R2 =", round(r2_score(yte, LinearRegression().fit(Xtr,ytr).predict(Xte)), 4))
+for lr in [.001, .01, .05, .2]:
+ plt.plot(gd(Xtr, ytr, lr, 200)[2], label=f"lr={lr}")
+plt.yscale("log"); plt.xlabel("epoch"); plt.ylabel("cost"); plt.legend()
+plt.title("Learning-rate sweep"); plt.show()
