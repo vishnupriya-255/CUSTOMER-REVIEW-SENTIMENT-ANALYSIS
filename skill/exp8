@@ -1,0 +1,62 @@
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct feature names
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score"]
+
+# Inject fake anomalies
+rng = np.random.default_rng(0)
+fake = pd.DataFrame({
+    "cgpa": rng.uniform(9.5, 10, 10),
+    "attendance_percentage": rng.uniform(45, 55, 10),
+    "backlogs": rng.integers(6, 9, 10),
+    "internships_count": 0,
+    "coding_skill_score": rng.uniform(0, 15, 10),
+    "communication_skill_score": rng.uniform(0, 15, 10)
+})
+
+# Combine real + fake data
+data = pd.concat([df[F], fake], ignore_index=True)
+is_fake = np.r_[np.zeros(len(df)), np.ones(10)].astype(bool)
+
+# Scale features
+X = StandardScaler().fit_transform(data)
+
+# Isolation Forest
+iso = IsolationForest(contamination=0.03, n_estimators=300, random_state=0).fit(X)
+flag = iso.predict(X)   # -1 = anomaly, +1 = normal
+score = iso.decision_function(X)
+
+print("flagged:", int((flag == -1).sum()), "rows")
+print("of the 10 injected fakes, detected:", int((flag[is_fake] == -1).sum()), "/ 10")
+
+# Score distribution
+plt.hist(score, bins=50, color="#2E5FA3")
+plt.axvline(0, color='r', ls='--')
+plt.xlabel("anomaly score (lower = stranger)")
+plt.title("Score distribution")
+plt.show()
+
+# Try different contamination levels
+X2 = PCA(2, random_state=0).fit_transform(X)
+for c in [0.01, 0.03, 0.05, 0.10]:
+    f = IsolationForest(contamination=c, n_estimators=300, random_state=0).fit_predict(X)
+    print(f"contamination={c:<5} flagged={int((f==-1).sum()):<4} fakes caught={int((f[is_fake]==-1).sum())}/10")
+
+# 2D view
+plt.scatter(X2[flag==1,0], X2[flag==1,1], c="steelblue", s=12, label="normal")
+plt.scatter(X2[flag==-1,0], X2[flag==-1,1], c="red", marker="x", s=50, label="anomaly")
+plt.legend(); plt.title("Isolation Forest output"); plt.show()
+
+# Compare averages of anomalies vs normal
+print("\nhow the flagged rows differ from everyone else:")
+print(pd.DataFrame({
+    "anomalies": data[flag==-1].mean(),
+    "normal": data[flag==1].mean()
+}).round(2))
