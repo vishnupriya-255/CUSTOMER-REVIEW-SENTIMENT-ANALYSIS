@@ -1,0 +1,47 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, roc_auc_score, RocCurveDisplay
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# -------------------- Binary Classification: placement_status --------------------
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score","projects_count"]
+
+Xtr, Xte, ytr, yte = train_test_split(df[F], df["placement_status"],
+                                      test_size=0.25, random_state=42, stratify=df["placement_status"])
+
+clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000)).fit(Xtr, ytr)
+
+print("---- Binary Classification ----")
+print(classification_report(yte, clf.predict(Xte)))
+print("ROC-AUC:", round(roc_auc_score(yte, clf.predict_proba(Xte)[:,1]), 4))
+
+RocCurveDisplay.from_estimator(clf, Xte, yte)
+plt.plot([0,1],[0,1],'k--')
+plt.show()
+
+coef = clf[-1].coef_[0]
+print("\nOdds ratios:\n", pd.Series(np.exp(coef), index=F).sort_values(ascending=False).round(3))
+
+
+
+df["grade"] = pd.cut(df.cgpa, [0,6.5,8,10], labels=["Low","Medium","High"])
+G = ["attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score","projects_count"]
+
+Xtr, Xte, ytr, yte = train_test_split(df[G], df.grade,
+                                      test_size=0.25, random_state=42, stratify=df.grade)
+
+soft = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, multi_class="multinomial")).fit(Xtr, ytr)
+
+print("\n---- Multinomial Classification ----")
+print(classification_report(yte, soft.predict(Xte)))
+print("\nPredicted probabilities (first 5 rows):")
+print(pd.DataFrame(soft.predict_proba(Xte)[:5].round(3), columns=soft.classes_))
