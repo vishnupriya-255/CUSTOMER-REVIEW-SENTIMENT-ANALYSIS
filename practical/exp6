@@ -1,0 +1,58 @@
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct feature names
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score","projects_count"]
+
+# Train/test split with correct target
+Xtr, Xte, ytr, yte = train_test_split(df[F], df["placement_status"],
+                                      test_size=0.25, random_state=42, stratify=df["placement_status"])
+
+# Compare criteria
+for crit in ["gini","entropy"]:
+    t = DecisionTreeClassifier(criterion=crit, random_state=0).fit(Xtr, ytr)
+    print(f"{crit:<8} train={t.score(Xtr,ytr):.3f} test={t.score(Xte,yte):.3f} leaves={t.get_n_leaves()}")
+
+# Overfitting curve
+depths = range(1,16)
+tr = [DecisionTreeClassifier(max_depth=d, random_state=0).fit(Xtr,ytr).score(Xtr,ytr) for d in depths]
+te = [DecisionTreeClassifier(max_depth=d, random_state=0).fit(Xtr,ytr).score(Xte,yte) for d in depths]
+
+plt.plot(depths,tr,'o-',label="train")
+plt.plot(depths,te,'s-',label="test")
+plt.xlabel("max_depth"); plt.ylabel("accuracy"); plt.legend()
+plt.title("Overfitting curve"); plt.show()
+
+# Cost complexity pruning (lighter version)
+path = DecisionTreeClassifier(random_state=0).fit(Xtr,ytr).cost_complexity_pruning_path(Xtr,ytr)
+alphas = np.linspace(path.ccp_alphas.min(), path.ccp_alphas.max(), 20)  # sample only 20 alphas
+
+cv_scores = []
+for a in alphas:
+    score = cross_val_score(DecisionTreeClassifier(ccp_alpha=a, random_state=0, max_depth=10),
+                            Xtr, ytr, cv=3, n_jobs=-1).mean()
+    cv_scores.append(score)
+
+# Plot CV scores vs alpha
+plt.plot(alphas, cv_scores, marker='o')
+plt.xlabel("ccp_alpha"); plt.ylabel("CV accuracy")
+plt.title("Cross-validation accuracy vs alpha")
+plt.show()
+
+best = alphas[int(np.argmax(cv_scores))]
+pruned = DecisionTreeClassifier(ccp_alpha=best, random_state=0).fit(Xtr,ytr)
+
+print(f"\nbest ccp_alpha={best:.5f} | leaves={pruned.get_n_leaves()} | test={pruned.score(Xte,yte):.4f}")
+
+# Visualize pruned tree
+plt.figure(figsize=(14,6))
+plot_tree(pruned, feature_names=F, class_names=["No","Yes"], filled=True, max_depth=2, fontsize=8)
+plt.show()
+
+# Feature importance
+print(pd.Series(pruned.feature_importances_, index=F).sort_values(ascending=False).round(3))
