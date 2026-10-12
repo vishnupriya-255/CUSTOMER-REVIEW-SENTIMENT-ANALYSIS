@@ -1,0 +1,461 @@
+# ============================================================
+# 1. IMPORT LIBRARIES
+# ============================================================
+
+import pandas as pd
+import numpy as np
+import re
+from collections import Counter
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+from sklearn.feature_selection import SelectKBest, chi2
+
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import f1_score, classification_report, confusion_matrix
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import label_binarize
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_style('whitegrid')
+
+colors = {
+    'Positive': '#2a9d8f',
+    'Neutral': '#e9c46a',
+    'Negative': '#e76f51'
+}
+
+
+# ============================================================
+# 2. UPLOAD CSV FILE (Google Colab)
+# ============================================================
+
+from google.colab import files
+
+uploaded = files.upload()
+
+
+# ============================================================
+# 3. LOAD CSV FILE
+# ============================================================
+
+file_name = list(uploaded.keys())[0]
+
+df = pd.read_csv(file_name)
+
+print("\nCSV file loaded successfully!")
+print("Number of rows     :", len(df))
+print("Number of columns :", len(df.columns))
+print("Columns            :", df.columns.tolist())
+
+
+# ============================================================
+# 4. DISPLAY ORIGINAL DATA
+# ============================================================
+
+print("\n" + "=" * 70)
+print("FIRST 10 ORIGINAL REVIEWS")
+print("=" * 70)
+
+print(
+    df[['Review_Header', 'Review_text', 'Own_Rating']]
+    .head(10)
+    .to_string(index=False)
+)
+
+
+# ============================================================
+# 5. CHECK MISSING VALUES
+# ============================================================
+
+print("\n" + "=" * 70)
+print("CHECKING FOR MISSING / EMPTY VALUES")
+print("=" * 70)
+
+print(df.isnull().sum())
+
+
+# ============================================================
+# 6. COMBINE REVIEW HEADER + REVIEW TEXT
+# ============================================================
+
+df['Review_Header'] = df['Review_Header'].fillna('')
+df['Review_text'] = df['Review_text'].fillna('')
+
+df['Review'] = (
+    df['Review_Header'].astype(str) + " " +
+    df['Review_text'].astype(str)
+).str.strip()
+
+print(
+    "\nReview header and review text combined. Total reviews:",
+    len(df)
+)
+
+
+# ============================================================
+# 7. REMOVE EMPTY REVIEWS
+# ============================================================
+
+before = len(df)
+
+df = df[
+    df['Review'].str.strip() != ''
+].copy()
+
+print(
+    "Empty reviews removed:",
+    before - len(df),
+    "| remaining:",
+    len(df)
+)
+
+
+# ============================================================
+# 8. REMOVE DUPLICATE REVIEWS
+# ============================================================
+
+before = len(df)
+
+df = df.drop_duplicates(
+    subset='Review'
+).copy()
+
+print(
+    "Duplicate reviews removed:",
+    before - len(df),
+    "| remaining:",
+    len(df)
+)
+
+
+# ============================================================
+# 9. CHECK SENTIMENT LABELS
+# ============================================================
+
+df['Own_Rating'] = (
+    df['Own_Rating']
+    .fillna('')
+    .astype(str)
+    .str.strip()
+)
+
+print("\nAll labels found in dataset:")
+
+print(
+    df['Own_Rating'].value_counts()
+)
+
+
+# ============================================================
+# 10. KEEP ONLY POSITIVE / NEGATIVE / NEUTRAL
+# ============================================================
+
+valid_labels = [
+    'Positive',
+    'Negative',
+    'Neutral'
+]
+
+before = len(df)
+
+df = df[
+    df['Own_Rating'].isin(valid_labels)
+].copy()
+
+print(
+    "\nRemoved because of invalid labels:",
+    before - len(df),
+    "| remaining:",
+    len(df)
+)
+
+
+# ============================================================
+# 11. SENTIMENT DISTRIBUTION (TABLE + GRAPH)
+# ============================================================
+
+print("\n" + "=" * 70)
+print("SENTIMENT DISTRIBUTION")
+print("=" * 70)
+
+print(
+    df['Own_Rating'].value_counts()
+)
+
+order = [
+    'Positive',
+    'Neutral',
+    'Negative'
+]
+
+counts = (
+    df['Own_Rating']
+    .value_counts()
+    .reindex(order)
+)
+
+
+# GRAPH 1: sentiment distribution (bar + pie)
+
+fig, axes = plt.subplots(
+    1,
+    2,
+    figsize=(12, 5)
+)
+
+axes[0].bar(
+    counts.index,
+    counts.values,
+    color=[colors[c] for c in counts.index]
+)
+
+for i, v in enumerate(counts.values):
+
+    axes[0].text(
+        i,
+        v,
+        str(v),
+        ha='center',
+        va='bottom'
+    )
+
+axes[0].set_title(
+    "Sentiment Distribution (Bar)"
+)
+
+axes[0].set_xlabel(
+    "Sentiment"
+)
+
+axes[0].set_ylabel(
+    "Number of Reviews"
+)
+
+axes[1].pie(
+    counts.values,
+    labels=counts.index,
+    autopct='%1.1f%%',
+    colors=[colors[c] for c in counts.index],
+    startangle=90
+)
+
+axes[1].set_title(
+    "Sentiment Distribution (Share)"
+)
+
+plt.tight_layout()
+plt.show()
+
+
+# GRAPH 2: star rating distribution and sentiment by product category
+
+fig, axes = plt.subplots(
+    1,
+    2,
+    figsize=(13, 5)
+)
+
+df['Rating'].value_counts().sort_index().plot(
+    kind='bar',
+    color='#457b9d',
+    ax=axes[0]
+)
+
+axes[0].set_title(
+    "Star Rating Distribution"
+)
+
+axes[0].set_xlabel(
+    "Star Rating"
+)
+
+axes[0].set_ylabel(
+    "Number of Reviews"
+)
+
+axes[0].tick_params(
+    axis='x',
+    rotation=0
+)
+
+
+pd.crosstab(
+    df['Category'],
+    df['Own_Rating']
+)[order].plot(
+    kind='bar',
+    stacked=True,
+    ax=axes[1],
+    color=[colors[c] for c in order]
+)
+
+axes[1].set_title(
+    "Sentiment by Product Category"
+)
+
+axes[1].set_xlabel(
+    "Category"
+)
+
+axes[1].set_ylabel(
+    "Number of Reviews"
+)
+
+axes[1].tick_params(
+    axis='x',
+    rotation=30
+)
+
+plt.tight_layout()
+plt.show()
+
+
+# ============================================================
+# 12. PREPARE STOPWORDS
+# ============================================================
+
+# Words that carry sentiment are KEPT (not removed)
+
+important_words = {
+    'no',
+    'not',
+    'never',
+    'nor',
+    'neither',
+    'cannot',
+    'without',
+    'but',
+    'however',
+    'although',
+    'could',
+    'can'
+}
+
+stop_words = (
+    set(ENGLISH_STOP_WORDS) -
+    important_words
+)
+
+print(
+    "\nNumber of stopwords used:",
+    len(stop_words)
+)
+
+
+# ============================================================
+# 13. TEXT CLEANING FUNCTION
+# ============================================================
+
+def clean_text(text):
+
+    text = str(text).lower()
+
+    # remove URLs
+    text = re.sub(
+        r'http\S+|www\S+|https\S+',
+        ' ',
+        text
+    )
+
+    # punctuation -> space
+    text = re.sub(
+        r'[^\w\s]',
+        ' ',
+        text
+    )
+
+    # remove numbers
+    text = re.sub(
+        r'\d+',
+        ' ',
+        text
+    )
+
+    # remove stopwords / 1-letter junk
+    words = [
+        w
+        for w in text.split()
+        if w not in stop_words
+        and len(w) > 1
+    ]
+
+    return ' '.join(words).strip()
+
+
+# ============================================================
+# 14. CLEAN ALL REVIEWS
+# ============================================================
+
+df['Original_Review'] = df['Review']
+
+df['Cleaned_Review'] = (
+    df['Review'].apply(clean_text)
+)
+
+empty_after = (
+    df['Cleaned_Review'] == ''
+).sum()
+
+df = df[
+    df['Cleaned_Review'] != ''
+].copy()
+
+print(
+    "Reviews that became empty after cleaning (removed):",
+    empty_after
+)
+
+print(
+    "Reviews remaining:",
+    len(df)
+)
+
+
+# ============================================================
+# 15. BEFORE / AFTER EXAMPLES
+# ============================================================
+
+print("\n" + "=" * 80)
+
+print(
+    "BEFORE AND AFTER CLEANING "
+    "(cleaning applied to ALL reviews, 5 shown)"
+)
+
+print("=" * 80)
+
+
+for i in range(
+    min(5, len(df))
+):
+
+    print(
+        "\nREVIEW",
+        i + 1
+    )
+
+    print(
+        "BEFORE:",
+        df['Original_Review'].iloc[i][:300]
+    )
+
+    print(
+        "AFTER :",
+        df['Cleaned_Review'].iloc[i][:300]
+    )
+
+    print(
+        "LABEL :",
+        df['Own_Rating'].iloc[i]
+    )
+
+    print(
+        "-" * 80
+    )
