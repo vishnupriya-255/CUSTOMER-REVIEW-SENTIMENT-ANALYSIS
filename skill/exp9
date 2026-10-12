@@ -1,0 +1,59 @@
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Features to use
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score"]
+
+# Standardize (different units)
+X = StandardScaler().fit_transform(df[F])
+
+# Correlation heatmap
+sns.heatmap(df[F].corr(), annot=True, fmt=".2f", cmap="coolwarm", center=0)
+plt.title("Indicators are correlated -> PCA will help")
+plt.show()
+
+# PCA fit
+pca = PCA().fit(X)
+print("variance explained:", pca.explained_variance_ratio_.round(3))
+
+# Reduce to 2 components
+Xp = PCA(2, random_state=0).fit_transform(X)
+
+# Silhouette scores for different k
+sil = [silhouette_score(Xp, KMeans(k, n_init=10, random_state=0).fit_predict(Xp)) for k in range(2,8)]
+k = list(range(2,8))[int(np.argmax(sil))]
+km = KMeans(k, n_init=10, random_state=0).fit(Xp)
+
+print("segments =", k, "| silhouette =", round(max(sil), 3))
+
+# Scatter plot with PCA components
+plt.scatter(Xp[:,0], Xp[:,1], c=km.labels_, cmap="viridis", s=14)
+for i, f in enumerate(F):  # arrows show feature loadings
+    plt.arrow(0, 0, pca.components_[0,i]*3, pca.components_[1,i]*3,
+              color='k', head_width=.07)
+    plt.text(pca.components_[0,i]*3.3, pca.components_[1,i]*3.3, f, fontsize=8)
+plt.xlabel("PC1"); plt.ylabel("PC2"); plt.title("Student segments (biplot)")
+plt.show()
+
+# Add segment labels
+df["segment"] = km.labels_
+
+# Profile each segment
+prof = df.groupby("segment")[F].mean().round(1)
+prof["students"] = df.segment.value_counts().sort_index()
+print(prof)
+
+# Give readable names
+for s, row in prof.iterrows():
+    tier = "high-performers" if row.cgpa > 8 else "average" if row.cgpa > 6 else "struggling"
+    print(f"segment {s}: {tier}, CGPA={row.cgpa:.1f}, "
+          f"attendance={row.attendance_percentage:.1f}%, "
+          f"backlogs={row.backlogs:.1f}, internships={row.internships_count:.1f}, "
+          f"coding={row.coding_skill_score:.1f}, comm={row.communication_skill_score:.1f}")
