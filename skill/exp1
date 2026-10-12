@@ -1,0 +1,56 @@
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+
+# -----------------------------
+# Load dataset
+# -----------------------------
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv").drop_duplicates()
+print("start shape:", df.shape)
+
+# Fill missing communication_skill_score with median
+df["communication_skill_score"] = df["communication_skill_score"].fillna(
+    df["communication_skill_score"].median()
+)
+print("missing after:", df.isna().sum().sum())
+
+# Clip cgpa outliers
+q1, q3 = df["cgpa"].quantile([0.25, 0.75])
+iqr = q3 - q1
+lo, hi = q1 - 1.5*iqr, q3 + 1.5*iqr
+df["cgpa"] = df["cgpa"].clip(lo, hi)
+
+# Define correct columns
+NUM = ["cgpa", "attendance_percentage", "backlogs", "internships_count",
+       "coding_skill_score", "communication_skill_score"]
+CAT = ["branch"]
+
+# Preprocessing pipeline
+prep = ColumnTransformer([
+    ("num", Pipeline([
+        ("imp", SimpleImputer(strategy="median")),
+        ("sc", StandardScaler())
+    ]), NUM),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), CAT)
+])
+
+# Apply preprocessing
+X = prep.fit_transform(df)
+
+# Get feature names
+num_features = NUM
+cat_features = prep.named_transformers_["cat"].get_feature_names_out(CAT)
+all_features = list(num_features) + list(cat_features)
+
+# Convert to DataFrame
+X_df = pd.DataFrame(X.toarray() if hasattr(X, "toarray") else X,
+                    columns=all_features)
+
+# Show results
+print(X_df.head())
+print("Final shape:", X_df.shape)
+
+# Save cleaned dataset
+df.to_csv("students_clean.csv", index=False)
