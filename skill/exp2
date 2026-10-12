@@ -1,0 +1,59 @@
+import pandas as pd, numpy as np, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.feature_selection import mutual_info_classif
+
+# Load cleaned dataset
+df = pd.read_csv("students_clean.csv")
+
+# Encode placement_status as numeric (1 = Placed, 0 = Not Placed)
+df["placed_flag"] = (df["placement_status"].str.strip().str.lower() == "placed").astype(int)
+
+# -----------------------------
+# Feature Engineering
+# -----------------------------
+df["score_avg"] = (df["coding_skill_score"] + df["communication_skill_score"]) / 2
+df["has_backlog"] = (df["backlogs"] > 0).astype(int)
+df["cgpa_band"] = pd.cut(df["cgpa"], [0, 6.5, 8, 10], labels=["Low", "Mid", "High"])
+df["att_x_cgpa"] = df["attendance_percentage"] * df["cgpa"]
+df["exp_index"] = df["internships_count"]*2 + df["has_backlog"]*-1
+
+print(df[["score_avg","has_backlog","att_x_cgpa","exp_index"]].head())
+
+# -----------------------------
+# Visualizations
+# -----------------------------
+sns.countplot(x="cgpa_band", hue="placed_flag", data=df)
+plt.title("Placement by CGPA band")
+plt.show()
+
+sns.boxplot(x="placed_flag", y="score_avg", data=df)
+plt.title("Average test score vs placement")
+plt.show()
+
+# -----------------------------
+# Feature Importance
+# -----------------------------
+feats = ["cgpa","attendance_percentage","backlogs","internships_count",
+         "coding_skill_score","communication_skill_score",
+         "score_avg","has_backlog","att_x_cgpa","exp_index"]
+
+# Correlation with target
+corr = df[feats].corrwith(df["placed_flag"]).abs()
+
+# Mutual information with target
+mi = pd.Series(mutual_info_classif(df[feats], df["placed_flag"], random_state=0),
+               index=feats)
+
+# Compare rankings
+rank = pd.DataFrame({"correlation": corr, "mutual_info": mi})
+rank = rank.sort_values("mutual_info", ascending=False).round(3)
+print(rank)
+
+# Plot mutual information
+rank.mutual_info.sort_values().plot.barh(color="#2E5FA3")
+plt.title("Feature importance (Mutual Information)")
+plt.show()
+
+# -----------------------------
+# Save dataset with new features
+# -----------------------------
+df.to_csv("students_features.csv", index=False)
