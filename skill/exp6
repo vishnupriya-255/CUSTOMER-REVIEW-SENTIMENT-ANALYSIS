@@ -1,0 +1,57 @@
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.tree import DecisionTreeClassifier, plot_tree, export_text
+from sklearn.metrics import classification_report
+
+# Load dataset
+df = pd.read_csv("student_placement_prediction_dataset_2026.csv")
+
+# Correct feature names
+F = ["cgpa","attendance_percentage","backlogs","internships_count",
+     "coding_skill_score","communication_skill_score"]
+
+# Convert target to numeric (1 = Placed, 0 = Not Placed)
+y = (df["placement_status"].str.strip().str.lower() == "placed").astype(int)
+
+# Train/test split
+Xtr, Xte, ytr, yte = train_test_split(df[F], y, test_size=0.25,
+                                      random_state=42, stratify=y)
+
+# Compare criteria
+for crit in ["gini","entropy"]:
+    t = DecisionTreeClassifier(criterion=crit, random_state=0).fit(Xtr, ytr)
+    print(f"{crit:<8} train={t.score(Xtr,ytr):.3f} test={t.score(Xte,yte):.3f} "
+          f"leaves={t.get_n_leaves()}")
+
+# Overfitting curve
+depths = range(1,16)
+tr = [DecisionTreeClassifier(max_depth=d, random_state=0).fit(Xtr,ytr).score(Xtr,ytr) for d in depths]
+te = [DecisionTreeClassifier(max_depth=d, random_state=0).fit(Xtr,ytr).score(Xte,yte) for d in depths]
+
+plt.plot(depths,tr,'o-',label="train")
+plt.plot(depths,te,'s-',label="test")
+plt.xlabel("max_depth"); plt.ylabel("accuracy"); plt.legend()
+plt.title("Where overfitting begins"); plt.show()
+
+# Cost complexity pruning
+full = DecisionTreeClassifier(random_state=0).fit(Xtr,ytr)
+alphas = full.cost_complexity_pruning_path(Xtr,ytr).ccp_alphas[:-1]
+cv = [cross_val_score(DecisionTreeClassifier(ccp_alpha=a, random_state=0),
+                      Xtr,ytr,cv=5).mean() for a in alphas]
+best = alphas[int(np.argmax(cv))]
+
+pruned = DecisionTreeClassifier(ccp_alpha=best, random_state=0).fit(Xtr,ytr)
+
+# Results
+print(f"\nunpruned: leaves={full.get_n_leaves():<4} test={full.score(Xte,yte):.4f}")
+print(f"pruned   : leaves={pruned.get_n_leaves():<4} test={pruned.score(Xte,yte):.4f}")
+print(classification_report(yte, pruned.predict(Xte)))
+
+# Visualize pruned tree
+plt.figure(figsize=(14,6))
+plot_tree(pruned, feature_names=F, class_names=["Not Placed","Placed"],
+          filled=True, max_depth=2, fontsize=8)
+plt.show()
+
+# Export rules
+print(export_text(pruned, feature_names=F, max_depth=2))
